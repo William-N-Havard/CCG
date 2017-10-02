@@ -1,0 +1,431 @@
+/*-------------------------------------------------*/
+/*                                                 */
+/*                    DONNEES                      */
+/*                                                 */
+/*-------------------------------------------------*/
+sep(S):-
+	membre(S, [" ", ".", """", ",", ";", ":", "!", "?", "-", "'", "(", ")", "[", "]", "{", "}"]).
+
+
+/*verbes au présent*/
+cat("attrape", "S\NP/NP").
+cat("attrapent", "S\NP/NP").
+cat("est", "S\NP/NP").
+cat("va", "S\NP/NP").
+cat("mange", "S\NP/NP").
+cat("mange", "S\NP").
+cat("mangent", "S\NP/NP").
+cat("mangent", "S\NP").
+cat("dévore", "S\NP/NP").
+
+/*verbes à l'imparfait ou passé simple*/
+cat("pensais", "S\NP/NP").
+cat("mangeait", "S\NP/NP").
+
+cat("dézingua", "S\NP/NP").
+cat("bouletta", "S\NP/NP").
+
+/*noms*/
+cat("sylvestre", "NP").
+cat("garfield", "NP").
+cat("mickey", "NP").
+cat("pierre", "NP").
+cat("paul", "NP").
+cat("je", "NP").
+cat("histoire", "NP/NP").
+cat("toto", "NP").
+cat("guerre", "NP").
+cat("c", "NP").
+
+cat("c_est", "S/NP").
+cat("l_histoire", "NP").
+cat("l_histoire", "NP/NP").
+cat("à_la_guerre", "NP").
+
+/*prépositions*/
+cat("de", "NP/NP").
+cat("à", "NP/NP").
+
+/*coordination*/
+cat("et", "X\X/X").
+
+/*adverbes*/
+cat("voracement", "S\S").
+
+/*déterminants*/
+cat("l", "NP/NP").
+cat("la", "NP/NP").
+
+/*conjonction de subordination + pronoms relatifs*/
+cat("que", "S/S").
+cat("que", "NP\NP/S/NP").
+cat("qui", "NP\NP/S\NP").
+
+
+/*liste des éléments acceptés comme éléments terminaux*/
+elementTerminal("NP").
+elementTerminal("S").
+
+	/*demarrage("garfield et mickey"),
+	demarrage("pierre et paul"),
+	demarrage("garfield mange"),
+	demarrage("garfield attrape et mange mickey"),
+	demarrage("toto et paul attrapent et mangent mickey et garfield"),
+	demarrage("c_est l_histoire de toto qui va à_la_guerre"),
+	demarrage("garfield mange mickey").*/
+
+/*-------------------------------------------------*/
+/*                                                 */
+/*                    LANCEMENT                    */
+/*                                                 */
+/*-------------------------------------------------*/
+
+demarrage(Phrase):-
+	reset_cpu_time,
+		analyse(Phrase),line,
+		fail.
+
+demarrage(Phrase):-
+	cpu_time(T),
+	nbTok(L),
+	out(T), outm(" millisecondes pour "), out(L), outm(" tokens"),
+	retractall(nbTok(_)).
+
+analyse(Phrase):-
+		outm("------------------------------------------------------------------------"),line,
+	tokenizer(Phrase, ListeTokens),
+	longueur(ListeTokens, L),
+	asserta(nbTok(L)),
+		outm("\t\t"), outm(Phrase),line, 
+	categories(ListeTokens, ListeTokensEtiquettes),
+		line, line,out(ListeTokensEtiquettes), line,
+	demarre(ListeTokensEtiquettes).
+
+demarre(ListeTokensEtiquettes):-
+	asserta(id(0)),
+	asserta(arbre(0)),
+	traitement(ListeTokensEtiquettes, [], ""),!.
+
+demarre(ListeTokensEtiquettes):-
+	id(N),
+	N=0,!,
+	outm("\tIl n'y a aucune solution !\n\n").
+
+demarre(ListeTokensEtiquettes):-
+	id(N),
+	(
+		N=1,!,
+		outm("\tIl y a "),out(N), outm(" solution\n\n")
+	;
+		outm("\tIl y a "),out(N), outm(" solutions\n\n")
+	),
+	affArbre,
+	retractall(id(_)).
+
+affArbre:-
+	retractall(arbre(0)),
+	arbre(Arbre),
+	out(Arbre),
+	retractall(arbre(_)).
+
+/*-------------------------------------------------*/
+/*                                                 */
+/*                    PROGRAMME                    */
+/*                                                 */
+/*-------------------------------------------------*/
+
+	/*********************************/
+	/* Règle pour vérifier le succès */
+	/*********************************/
+
+traitement([Token, X], nil, Affichage):-
+	elementTerminal(X),
+	not(arbre(Token)),
+	asserta(arbre(Token)),
+	inc_id/*,
+		outm("\n\n"), outm(Affichage),outm("\n\t"),
+		out(Token),outm(" => "), out(X),
+		outm("\n\n\tRéussite !\n\n")*/, fail.
+
+	/*********************/
+	/* Test coordination */
+	/*********************/
+
+traitement(Entree, Ecart, Affichage):-
+	coordination(Entree, RetourCoord, RetAff),
+	concat(Ecart, RetourCoord, NewEntree),
+	conc_string(Affichage, RetAff, NewAff),
+	traitement(NewEntree, [], NewAff).
+
+
+	/********************/
+	/* Test application */
+	/********************/
+
+traitement(Entree, Ecart, Affichage):-
+	application(Entree, Sortie2, RetAff),
+	concat(Ecart, Sortie2, NewEntree),
+	conc_string(Affichage, RetAff, NewAff),
+	traitement(NewEntree, [], NewAff).
+
+
+	/***************************/
+	/* Test application inverse*/
+	/***************************/
+
+traitement(Entree, Ecart, Affichage):-
+	application_inverse(Entree, Sortie2, RetAff),
+	concat(Ecart, Sortie2, NewEntree),
+	conc_string(Affichage, RetAff, NewAff),
+	traitement(NewEntree, [], NewAff).
+
+	/***************************/
+	/*  Test comp. harmonique  */
+	/***************************/
+
+traitement(Entree, Ecart, Affichage):-
+	composition_harmonique(Entree, Sortie2, RetAff),
+	concat(Ecart, Sortie2, NewEntree),
+	conc_string(Affichage, RetAff, NewAff),
+	traitement(NewEntree, [], NewAff).
+
+	/***************************/
+	/*  Test comp. harm. inv   */
+	/***************************/
+
+traitement(Entree, Ecart, Affichage):-
+	composition_harmonique_inverse(Entree, Sortie2, RetAff),
+	concat(Ecart, Sortie2, NewEntree),
+	conc_string(Affichage, RetAff, NewAff),
+	traitement(NewEntree, [], NewAff).
+
+	/***************************/
+	/*    Test type raising    */
+	/***************************/
+
+traitement(Entree, Ecart, Affichage):-
+	type_raising(Entree, Sortie2, RetAff1),
+	composition_harmonique(Sortie2, Sortie3, RetAff2),
+	concat(Ecart, Sortie3, NewEntree),
+	conc_list_string([Affichage, RetAff1, RetAff2], NewAff),
+	traitement(NewEntree, [], NewAff).
+
+	/*******************************/
+	/* Décalage si rien n'a marché */
+	/*******************************/
+
+traitement([Mot,Cat|Entree], Ecart, Affichage):-
+	Bla=[Mot,Cat],
+	concat(Ecart, Bla, EcartS),
+	traitement(Entree, EcartS, Affichage).
+
+/*-------------------------------------------------*/
+/*                                                 */
+/*                  AGGLUTINATION                  */
+/*                                                 */
+/*-------------------------------------------------*/
+
+application([Token1, Cat1, Token2, Cat2|Entree], [[Token1, Token2], Retour|Entree], RetAff):-
+	conc_string(DebutCat1, FinCat1, Cat1),
+	conc_string("/", Cat2, Resultat),
+	FinCat1=Resultat,
+	Retour=DebutCat1,
+		/* Gestion de l'affichage */
+		genererAffichage(Token1, Cat1, Token2, Cat2, "", "", Retour, ">", RetAff).
+
+
+application_inverse([Token1, Cat1, Token2, Cat2|Entree], [[Token1, Token2], Retour|Entree], RetAff):-
+	conc_string(DebutCat2, FinCat2, Cat2),
+	conc_string("\", Cat1, Resultat),
+	FinCat2=Resultat,
+	Retour=DebutCat2,
+		/* Gestion de l'affichage */
+		genererAffichage(Token1, Cat1, Token2, Cat2, "", "", Retour,  "<", RetAff).
+
+composition_harmonique([Token1, Cat1, Token2, Cat2|Entree], [[Token1, Token2], Retour|Entree], RetAff):-
+	conc_string(DebutCat1, FinCat1, Cat1),
+	conc_string(DebutCat2, FinCat2, Cat2),
+	
+	conc_string(FinCat1, "/", RCat1),
+	RCat1=DebutCat2,
+	dif(DebutCat1, ""),
+	dif(FinCat2, ""),
+	conc_string(DebutCat1, FinCat2, Retour),
+		/* Gestion de l'affichage */
+		genererAffichage(Token1, Cat1, Token2, Cat2, "", "", Retour,  ">B", RetAff).
+
+composition_harmonique_inverse([Token1, Cat1, Token2, Cat2|Entree], [[Token1, Token2], Retour|Entree], RetAff):-
+	conc_string(DebutCat1, FinCat1, Cat1),
+	conc_string(DebutCat2, FinCat2, Cat2),
+
+	conc_string("\", DebutCat1, RCat),
+	FinCat2=RCat,
+	dif(FinCat1, ""),
+	dif(DebutCat2, ""),
+	conc_string(DebutCat2, FinCat1, Retour),
+		/* Gestion de l'affichage */
+		genererAffichage(Token1, Cat1, Token2, Cat2, "", "", Retour,  "<B", RetAff).
+
+type_raising([Token1, Cat1, Token2, Cat2|Entree], [Token1, Retour, Token2, Cat2|Entree], RetAff):-
+	conc_string(DebutCat2, FinCat2, Cat2),
+	conc_string(DebutDebutCat2, FinDebutCat2, DebutCat2),
+
+	conc_string("\", Cat1, R),
+	FinDebutCat2=R,
+	conc_string(DebutDebutCat2, "/", R1),
+	conc_string(R1, DebutCat2, Retour),
+		/* Gestion de l'affichage */
+		genererAffichage(Token1, Cat1, Token2, Cat2, "", "", Retour, ">T", RetAff).
+	
+coordination([Token1, Cat1, Token2, Cat2, Token3, Cat3|Entree], [[Token1, Token2, Token3], Cat3|Entree], RetAff):-
+	Cat2="X\X/X",
+	Cat1=Cat3,
+		/* Gestion de l'affichage */
+		genererAffichage(Token1, Cat1, Token2, Cat2, Token3, Cat3, "", ">*", RetAff).
+
+
+/*-------------------------------------------------*/
+/*                                                 */
+/*                   UTILITAIRES                   */
+/*                                                 */
+/*-------------------------------------------------*/
+
+	/*******************************************************************/
+	/*  Permet de transformer une liste (+ ses sous listes) en chaine  */
+	/*******************************************************************/
+
+listToString(E, R):-
+	(
+		/*si E est bien une liste, on la parcourt*/
+		compound(E),
+		parcours_liste(E, R1),
+		conc_list_string(R1,R2),
+		/*on renvoie le résultat*/
+		conc_list_string(["[", R2, "]"], R)
+	;
+		/*sinon on renvoie directement le résultat*/
+		not(compound(E)),
+		conc_list_string(["[", E, "]"], R)
+	).
+
+parcours_liste([], []):-!.
+
+parcours_liste([X|LE], LR):-
+	compound(X),!,
+	/*si l'élément X est lui même une liste, on le traite*/
+		parcours_liste(X,LRX),
+		concat(["["|LRX], ["] "], LRX1),
+	/*puis on parcourt la queue de liste*/
+		parcours_liste(LE, LRLE),
+	/*on renvoie le résultat*/
+	concat(LRX1,LRLE,LR).
+
+/*on ajoute des guillemets et des espaces autour de l'élément + virgule (si pas dernier)*/
+parcours_liste([X|LE], ["""", X, ""","|LR]):-
+	/*si X n'est pas un liste, on parcourt simplement les éléments de la liste en les mettant dans LR*/
+	dif(LE, nil),!,
+	parcours_liste(LE,LR).
+
+/*s'il ne reste qu'un élément on ajoute pas de virgule après*/
+parcours_liste([X], ["""",X,""""|LR]):-
+	parcours_liste(nil,LR).
+
+
+	/*********************************/
+	/* Permet de générer l'affichage */
+	/*********************************/
+
+genererAffichage(Token1, Cat1, Token2, Cat2, Token3, Cat3, Retour, Fleche, RetAff):-
+	/*on transforme ce qui arrive en chaines de caractères*/
+	listToString(Token1, RT1),
+	listToString(Token2, RT2),
+	
+	/* Ajout d'un \t à l'affichage (plus lisible) si typeraising */
+	(Fleche=">T",!,	Ajout="\t";Ajout=""),
+
+	/* Si on a Token3!="" c'est qu'on est dans une coordination, on rajoute donc ce qu'il faut */
+	(dif(Token3, ""),!,listToString(Token3, RT3),Ret=Cat3, conc_list_string([" \t", RT3, "=>", Cat3], Coord); Coord="", Ret=Retour),
+	
+	conc_list_string(["\n\t", RT1, "=>", Cat1, " \t", Ajout, RT2, "=>", Cat2, Coord, "\n\t--------------------", Fleche, "\n\t\t", Ret, "\n"], RetAff).
+
+
+	/************************************************************/
+	/* Permet d'attribuer les différentes catégories aux tokens */
+	/************************************************************/
+
+categories([], []).
+
+categories([Token|L1], [Token, Categorie|L2]):-
+	cat(Token, Categorie),
+	categories(L1, L2).
+
+
+	/**************************************************/
+	/* Permet de séparer la phrase d'entrée en tokens */
+	/**************************************************/
+
+tokenizer(String, RListe):-
+	split(String, Liste),
+	tokenizeur(Liste, "", RListe).
+
+/*règle d'arrêt*/
+tokenizeur([], _, []):-!.
+
+/*Si on tombe sur un caractère séparateur, et que la chaine de caractères à ajouter
+n'est pas vide, on la rajoute comme élément dans L2*/
+tokenizeur([X|L1], String, [String|L2]):-
+	sep(X),
+	dif(String, ""),!,
+	tokenizeur(L1, "", L2).
+
+/*Si jamais il y a plusieurs fois un caractère séparateur à suivre, évite de créer 
+des éléments vides dans la liste (= si la string à ajouter est vide)*/
+tokenizeur([X|L1], String, L2):-
+	sep(X),!,
+	String="",
+	tokenizeur(L1, "", L2).
+
+/*S'il ne reste plus qu'une lettre à lire dans la chaine d'entrée*/
+tokenizeur([X], String, L2):-!,
+	conc_string(String, X, String2),
+	tokenizeur([" "], String2, L2). /*obligé de mettre [séparateur] pour que la chaine soit effectivement ajoutée à L2 via le premier prédicat*/
+
+/*Si ça ne répond à aucuns des critères précédent, on ajoute le caractère lu
+aux autres caractères lus précédement*/
+tokenizeur([X|L1], String, L2):-
+	conc_string(String, X, String2),
+	tokenizeur(L1, String2, L2).
+
+
+	/*************************************/
+	/* voir si arg1 membre de liste arg2 */
+	/*************************************/
+
+membre(X,[X|_]):-!.
+membre(X,[_|L]):-
+	membre(X,L).
+
+	/*************************************/
+	/*  Permet de concaténer deux listes */
+	/*************************************/
+
+concat([],L,L).
+concat([X|L1],L2,[X|L3]):-
+	concat(L1,L2,L3).
+
+
+	/********************************/
+	/* longueur /2 (i,o)            */
+	/********************************/
+longueur([],0).
+longueur([_|L],N1):-
+	longueur(L,N),
+	N1 is 1+N.
+
+inc_id:-
+	id(N),
+	N1 is N + 1,
+	retractall(id(_)),
+	asserta(id(N1)).
+
+
