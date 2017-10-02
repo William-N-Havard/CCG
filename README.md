@@ -127,7 +127,7 @@ Sample output:
 16 millisecondes pour 9 tokens{}
 ```
 
-```prolog
+```
 ?- demarrage("garfield attrape et mange mickey").
 -------------------
 		garfield attrape et mange mickey
